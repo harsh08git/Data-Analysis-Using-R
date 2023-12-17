@@ -1,0 +1,150 @@
+---
+title: "Uber Data Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this data visualization project focused on Uber pickups in New York City, we harness the power of the *ggplot2* library to unravel insights and trends within the dataset. By visually interpreting the patterns of customer behavior and trip dynamics, this analysis aims to empower companies with valuable information for informed decision-making and strategic planning in the ever-evolving realm of ride-sharing services.
+
+
+## Importing Essential Packages
+Ggplot2 and ggthemes for enhanced visualization aesthetics, lubridate for efficient handling of diverse time frames, DT for seamless integration with Datatables, and the foundational tidyverse and scales packages, collectively empowering a comprehensive and insightful analysis of Uber pickups in New York City.
+```{r loading packages}
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(DT)
+library(ggthemes)
+library(dplyr)
+```
+
+## Reading Data into Designated Variables
+```{r read data}
+apr_data <- read_csv('Uber-dataset/uber-raw-data-apr14.csv')
+may_data <- read_csv('Uber-dataset/uber-raw-data-may14.csv')
+jun_data <- read_csv('Uber-dataset/uber-raw-data-jun14.csv')
+jul_data <- read_csv('Uber-dataset/uber-raw-data-jul14.csv')
+aug_data <- read_csv('Uber-dataset/uber-raw-data-aug14.csv')
+sep_data <- read_csv('Uber-dataset/uber-raw-data-sep14.csv')
+
+```
+
+## Appropriate Formatting of Date Time Column
+```{r reading data, echo=TRUE}
+uber_data <- rbind(apr_data, may_data, jun_data, jul_data, aug_data, sep_data)
+uber_data <- rename(uber_data, Date.Time = 'Date/Time')
+
+uber_data$Date.Time <- as.POSIXct(uber_data$Date.Time, format="%m/%d/%Y %H:%M:%S")
+uber_data$Time <- format(uber_data$Date.Time, "%H:%M:%S")
+
+#Date Variables
+uber_data$Day <- factor(day(uber_data$Date.Time))
+uber_data$Month <- factor(month(uber_data$Date.Time, label = TRUE))
+uber_data$Year <- factor(year(uber_data$Date.Time))
+uber_data$DayOfWeek <- factor(wday(uber_data$Date.Time, label=TRUE))
+
+#Time Variables
+uber_data$second <- factor(second(hms(uber_data$Time)))
+uber_data$minute <- factor(minute(hms(uber_data$Time)))
+uber_data$hour <- factor(hour(hms(uber_data$Time)))
+
+head(uber_data)
+
+```
+
+
+## Plotting the trips by the hours in a day over the 6-months period
+```{r plot-1, echo=TRUE}
+uber_data %>% 
+  group_by(hour) %>% 
+  summarise(hourly_trips= n()) %>% 
+  ggplot(.) + geom_bar(mapping = aes(x=hour, y=hourly_trips), stat = 'identity') + labs(title = 'Trips Every Hour', subtitle='Aggregated', x='Hour', y='Total Trips') + theme(plot.title = element_text(hjust=0.5), plot.subtitle = element_text(hjust=0.5)) + scale_y_continuous(labels = comma)
+
+```
+
+
+## Plotting the trips by the hours in a day stacked monthly
+```{r plot-2, echo=TRUE}
+uber_data %>% 
+  group_by(hour, Month) %>% 
+  summarise(hourly_trips= n()) %>% 
+  ggplot(.) + geom_bar(mapping = aes(x=hour, y=hourly_trips, fill = Month), stat = 'identity') + labs(title = 'Trips by Hour & Month', x='Hour', y='Total Trips') + theme(plot.title = element_text(hjust=0.5), plot.subtitle = element_text(hjust=0.5)) + scale_y_continuous(labels = comma)
+
+```
+
+
+## Finding out the number of Trips by Weekdays
+```{r plot-3, echo=TRUE}
+uber_data %>% 
+  group_by(DayOfWeek) %>% 
+  summarise(trips= n()) %>% 
+  ggplot(.) + geom_bar(mapping = aes(x=DayOfWeek, y=trips),fill = '#cc4400' ,stat = 'identity') + labs(title = 'Trips by WeekDay', x='Day of Week', y='Total Trips') + theme(plot.title = element_text(hjust=0.5)) + scale_y_continuous(labels = comma)
+
+```
+
+
+## Finding out the number of Trips by Weekdays with Month-on-Month Comparison
+```{r plot-4, echo=TRUE}
+uber_data %>% 
+  group_by(DayOfWeek, Month) %>% 
+  summarise(trips= n()) %>% 
+  ggplot(.) + geom_bar(mapping = aes(x= DayOfWeek, y=trips, fill = Month) ,stat = 'identity', position = 'dodge') + labs(title = 'Trips by WeekDay & Month', x='Day of Week', y='Total Trips') + theme(plot.title = element_text(hjust=0.5), panel.grid = element_blank(), panel.grid.major.y = element_line(size = 0.05, linetype = 2)) + scale_y_continuous(labels = comma) + scale_fill_manual(values = c("#00876c", "#6fab79", "#b9ce91", "#fff1b5", "#f4bb7b", "#e88159"))
+
+```
+
+
+## Number of Trips taking place during months in a year
+```{r plot-5, echo=TRUE}
+uber_data %>% 
+  group_by(Month) %>% 
+  summarise(trips= n()) %>% 
+  ggplot(.) + geom_bar(mapping = aes(x= Month, y=trips, fill = Month),stat = 'identity') + labs(title = 'Monthly Trips', x='Month', y='Total Trips') + theme(plot.title = element_text(hjust=0.5)) + scale_y_continuous(labels = comma) + scale_fill_manual(values = c("#ff1111", "#ff615a", "#ff9594", "#ffc5c8", "#ff99aa", "#ff6695")) 
+
+```
+
+
+## Uber Demand Heatmap by Hour and Day
+```{r plot-6, echo=TRUE}
+uber_data %>% 
+  group_by(Day, hour) %>% 
+  summarise(trips = n()) %>% 
+  ggplot(.) + geom_tile(mapping = aes(x=Day, y=hour, fill = trips), color ='white') + labs(title= "Heatmap Distribution by Day & Hour",x = 'Day', y='Hour') + scale_fill_gradient(low='#800000', high='#ff9999')
+
+```
+
+
+## Monthly Uber Demand Heatmap by Day
+```{r plot-7, echo=TRUE}
+uber_data %>% 
+  group_by(Day, Month) %>% 
+  summarise(trips = n()) %>% 
+  ggplot(.) + geom_tile(mapping = aes(x=Day, y=Month, fill = trips), color ='white') + labs(title= "Heatmap Distribution by Day & Month",x = 'Day', y='Month') + scale_fill_gradient(low='#00b300', high='#000000')
+
+```
+
+
+## Monthly Uber Demand Heatmap by Day of the Week
+```{r plot-8, echo=TRUE}
+uber_data %>% 
+  group_by(DayOfWeek, Month) %>% 
+  summarise(trips = n()) %>% 
+  ggplot(.) + geom_tile(mapping = aes(x=DayOfWeek, y=Month, fill = trips), color ='white') + labs(title= "Heatmap Distribution by WeekDay & Month",x = 'Day of Week', y='Month') + scale_fill_gradient(low='#ffffcc', high='#4d88ff')
+
+```
+
+
+## Map Visualization of rides in New York
+```{r plot-9, echo=TRUE}
+min_lat <- 40 
+max_lat <- 40.91
+min_long <- -74.15
+max_long <- -73.7004
+
+ggplot(data=uber_data) + geom_point(mapping = aes(x=Lon, y=Lat, color = Base), size=1) + scale_x_continuous(limits=c(min_long, max_long)) + scale_y_continuous(limits=c(min_lat, max_lat)) + 
+  theme_map() + labs(title = "NYC MAP BASED ON UBER RIDES DURING 2014 (APR-SEP) by BASE")
+
+```
+
